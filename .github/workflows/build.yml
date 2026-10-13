@@ -47,3 +47,25 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "${{ github.ref_name }}" FolderHighlight.exe --repo "${{ github.repository }}" --generate-notes
+
+  latest:
+    # Every push to the main branch refreshes a rolling "latest" pre-release
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: FolderHighlight
+
+      - name: Refresh latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release delete latest --cleanup-tag --yes --repo "$REPO" || true
+          gh release create latest FolderHighlight.exe --repo "$REPO" --target "${{ github.sha }}" \
+            --prerelease --title "Latest build" \
+            --notes "Automatic build of commit ${{ github.sha }}."
